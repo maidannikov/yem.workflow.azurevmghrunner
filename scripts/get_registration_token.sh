@@ -1,16 +1,14 @@
 #!/bin/bash
 
 # Parameters
-JWT=$1  # JWT для аутентификации
-ORG=$2  # Название GitHub организации
+JWT=$1
+ORGANIZATION=$2
 
 # Validate input
-if [ -z "$JWT" ] || [ -z "$ORG" ]; then
-  echo "Usage: $0 <JWT> <ORG>"
+if [ -z "$JWT" ] || [ -z "$ORGANIZATION" ]; then
+  echo "Usage: $0 <JWT> <ORGANIZATION>"
   exit 1
 fi
-
-echo "Fetching installation access token URL..."
 
 # Fetch installation access token URL
 INSTALLATION_ACCESS_TOKEN_URL=$(curl -s \
@@ -22,8 +20,6 @@ if [ -z "$INSTALLATION_ACCESS_TOKEN_URL" ]; then
   echo "Error: Failed to fetch installation access token URL."
   exit 1
 fi
-
-echo "Fetching installation access token..."
 
 # Fetch installation access token
 INSTALLATION_ACCESS_TOKEN=$(curl -s \
@@ -37,16 +33,17 @@ if [ -z "$INSTALLATION_ACCESS_TOKEN" ]; then
   exit 1
 fi
 
-echo "Fetching registration token..."
-
 # Fetch registration token
 REGISTRATION_TOKEN=$(curl -s \
   -X POST \
   -H "Authorization: Bearer $INSTALLATION_ACCESS_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/orgs/$ORG/actions/runners/registration-token | jq -r '.token')
+  https://api.github.com/orgs/${ORGANIZATION}/actions/runners/registration-token | jq -r '.token')
 
 if [ -z "$REGISTRATION_TOKEN" ]; then
   echo "Error: Failed to fetch registration token."
   exit 1
 fi
+
+# Output only the registration token
+echo "$REGISTRATION_TOKEN"

@@ -6,36 +6,33 @@ APP_ID=$2          # GitHub App ID
 
 # Validate input
 if [ -z "$APP_KEY_BASE64" ] || [ -z "$APP_ID" ]; then
-  echo "Usage: $0 <APP_KEY_BASE64> <APP_ID>"
+  echo "Error: Missing required parameters."
   exit 1
 fi
 
 # Decode the private key
-echo "Decoding private key..."
-echo -n "$APP_KEY_BASE64" | base64 -d > /tmp/github-app-key.pem
+PRIVATE_KEY_PATH="/tmp/github-app-key.pem"
+echo -n "$APP_KEY_BASE64" | base64 -d > "$PRIVATE_KEY_PATH"
 
 # Validate the private key
-if ! openssl rsa -in /tmp/github-app-key.pem -check > /dev/null 2>&1; then
+if ! openssl rsa -in "$PRIVATE_KEY_PATH" -check > /dev/null 2>&1; then
   echo "Error: Private key is invalid."
-  rm /tmp/github-app-key.pem
+  rm "$PRIVATE_KEY_PATH"
   exit 1
 fi
 
 # Generate JWT
-echo "Generating JWT..."
 ISS=$APP_ID
 IAT=$(date +%s)
 EXP=$(date -d "+10 minutes" +%s)
 
 JWT=$(jwt encode \
-  --secret "@/tmp/github-app-key.pem" \
+  --secret "@$PRIVATE_KEY_PATH" \
   --payload "iss=$ISS" \
   --payload "iat=$IAT" \
   --payload "exp=$EXP" \
-  --alg RS256) || { echo "Error: Failed to generate JWT."; rm /tmp/github-app-key.pem; exit 1; }
+  --alg RS256) || { echo "Error: Failed to generate JWT."; rm "$PRIVATE_KEY_PATH"; exit 1; }
 
-# Clean up the private key
-rm /tmp/github-app-key.pem
-
-# Output the JWT
+# Clean up and output only the JWT
+rm "$PRIVATE_KEY_PATH"
 echo "$JWT"

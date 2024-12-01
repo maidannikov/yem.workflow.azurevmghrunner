@@ -13,7 +13,7 @@ on:
       location:
         description: 'Azure Location'
         required: true
-        default: 'westeurope'
+        default: 'uksouth'
         type: choice
         options:
           - westeurope       # West Europe
@@ -38,7 +38,11 @@ on:
       organization:
         description: 'GitHub Organization'
         required: true
-        default: 'Your-Org'
+        default: 'Prod-Org'
+        type: choice
+        options:
+          - Prod-Org
+          - Dev-Org
       runner_group:
         description: 'GitHub Runner Group'
         required: true
@@ -46,7 +50,7 @@ on:
       runner_labels:
         description: 'GitHub Runner Labels (comma-separated)'
         required: true
-        default: 'vm,azure,custom-runner'
+        default: 'vm,azure'
       admin_username:
         description: 'Admin Username for Azure VM (avoid reserved words like admin or root)'
         required: true
@@ -59,7 +63,6 @@ on:
         options:
           - true   # Upload SSH Key for debugging purposes
           - false  # Do not upload the SSH Key
-
 
 jobs:
   create-vm:
@@ -77,34 +80,37 @@ jobs:
     - name: Log in to Azure
       uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_SP_CREDS }}
+        creds: ${{ secrets.AZURE_SP }}
     
     - name: Generate JWT
       run: |
         chmod +x scripts/generate_jwt.sh
         JWT=$(scripts/generate_jwt.sh "${{ secrets.APP_KEY }}" "${{ secrets.APP_ID }}") || exit 1
-        echo "JWT=$JWT" >> $GITHUB_ENV
+        echo "Generated JWT: $JWT"
+        printf "JWT=%s\n" "$JWT" >> $GITHUB_ENV
       
     - name: Get Registration Token
+      id: get_registration_token
       run: |
         chmod +x scripts/get_registration_token.sh
         REGISTRATION_TOKEN=$(scripts/get_registration_token.sh "${{ env.JWT }}" "${{ github.event.inputs.organization }}") || exit 1
+        echo "Registration token fetched successfully."
         echo "REGISTRATION_TOKEN=$REGISTRATION_TOKEN" >> $GITHUB_ENV
-  
+      
     - name: Setup Runner
       run: |
-        echo "Setting up environment variables..."
         chmod +x scripts/setup_runner.sh
         scripts/setup_runner.sh \
-          --subscription-id="${{ github.event.inputs.subscription_id }}" \
-          --resource-group="${{ github.event.inputs.resource_group }}" \
-          --location="${{ github.event.inputs.location }}" \
-          --vm-size="${{ github.event.inputs.vm_size }}" \
-          --runner-group="${{ github.event.inputs.runner_group }}" \
-          --runner-labels="${{ github.event.inputs.runner_labels }}" \
-          --admin-username="${{ github.event.inputs.admin_username }}" \
-          --organization="${{ github.event.inputs.organization }}" \
-          --registration-token="${{ env.REGISTRATION_TOKEN }}"
+          --subscription-id "${{ github.event.inputs.subscription_id }}" \
+          --resource-group "${{ github.event.inputs.resource_group }}" \
+          --location "${{ github.event.inputs.location }}" \
+          --vm-size "${{ github.event.inputs.vm_size }}" \
+          --runner-group "${{ github.event.inputs.runner_group }}" \
+          --runner-labels "${{ github.event.inputs.runner_labels }}" \
+          --admin-username "${{ github.event.inputs.admin_username }}" \
+          --organization "${{ github.event.inputs.organization }}" \
+          --registration-token "${{ env.REGISTRATION_TOKEN }}"
+      
   
     - name: Upload SSH Key 
       if: ${{ github.event.inputs.upload_ssh_key == 'true' }}

@@ -3,51 +3,41 @@
 # Parameters
 while [ "$1" != "" ]; do
     case $1 in
-        --subscription-id )     shift
-                                SUBSCRIPTION_ID=$1
-                                ;;
-        --resource-group )       shift
-                                RESOURCE_GROUP=$1
-                                ;;
-        --location )             shift
-                                LOCATION=$1
-                                ;;
-        --vm-size )              shift
-                                VM_SIZE=$1
-                                ;;
-        --runner-group )         shift
-                                RUNNER_GROUP=$1
-                                ;;
-        --runner-labels )        shift
-                                RUNNER_LABELS=$1
-                                ;;
-        --admin-username )       shift
-                                VM_USER=$1
-                                ;;
-        --organization )         shift
-                                ORGANIZATION=$1
-                                ;;
-        --registration-token )   shift
-                                RUNNER_TOKEN=$1
-                                ;;
-        * )                      echo "Error: Invalid parameter: $1"
-                                exit 1
+        --subscription-id ) shift
+                            SUBSCRIPTION_ID=$1
+                            ;;
+        --resource-group )  shift
+                            RESOURCE_GROUP=$1
+                            ;;
+        --location )        shift
+                            LOCATION=$1
+                            ;;
+        --vm-size )         shift
+                            VM_SIZE=$1
+                            ;;
+        --runner-group )    shift
+                            RUNNER_GROUP=$1
+                            ;;
+        --runner-labels )   shift
+                            RUNNER_LABELS=$1
+                            ;;
+        --admin-username )  shift
+                            VM_USER=$1
+                            ;;
+        --organization )    shift
+                            ORGANIZATION=$1
+                            ;;
+        --registration-token ) shift
+                            RUNNER_TOKEN=$1
+                            ;;
+        * )                 echo "Error: Invalid parameter: $1"
+                            exit 1
     esac
     shift
 done
 
-# Logging received parameters (hide sensitive data like tokens)
-echo "Subscription ID: $SUBSCRIPTION_ID"
-echo "Resource Group: $RESOURCE_GROUP"
-echo "Location: $LOCATION"
-echo "VM Size: $VM_SIZE"
-echo "Runner Group: $RUNNER_GROUP"
-echo "Runner Labels: $RUNNER_LABELS"
-echo "Admin Username: $VM_USER"
-echo "Organization: $ORGANIZATION"
-
 VM_IMAGE="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
-VM_NAME="azure-vm-$(date +%s)"
+VM_NAME="${ORGANIZATION}-azure-vm-$(date +%s)"
 SSH_KEY="$HOME/.ssh/github_runner_key"
 GITHUB_URL="https://github.com/$ORGANIZATION"         
 RUNNER_NAME="runner-${VM_NAME}"              
@@ -122,16 +112,24 @@ RUNNER_LABELS="$RUNNER_LABELS"
 
 echo "Installing dependencies..."
 sudo apt-get update
-sudo apt-get install -y curl tar
+sudo apt-get install -y curl tar wget apt-transport-https software-properties-common
+
+# Install PowerShell Core
+echo "Installing PowerShell Core..."
+wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt-get update
+sudo apt-get install -y powershell
+pwsh --version || { echo "Failed to install PowerShell Core"; exit 1; }
 
 echo "Creating the actions-runner directory..."
 mkdir -p actions-runner
 cd actions-runner
 
-echo "Downloading... \$RUNNER_VERSION..."
+echo "Downloading GitHub Runner version \$RUNNER_VERSION..."
 curl -o actions-runner-linux-x64-\$RUNNER_VERSION.tar.gz -L https://github.com/actions/runner/releases/download/v\$RUNNER_VERSION/actions-runner-linux-x64-\$RUNNER_VERSION.tar.gz
 
-echo "Extracting..."
+echo "Extracting GitHub Runner..."
 tar xzf actions-runner-linux-x64-\$RUNNER_VERSION.tar.gz
 rm actions-runner-linux-x64-\$RUNNER_VERSION.tar.gz
 
@@ -145,6 +143,7 @@ sudo ./svc.sh start
 echo "GitHub Runner has been installed and started!"
 EOF
 )
+
 
 echo "Connecting to the virtual machine $VM_IP..."
 ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" "$VM_USER@$VM_IP" "$REMOTE_COMMANDS"
