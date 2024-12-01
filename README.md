@@ -68,8 +68,8 @@ Example JSON:
 | `resource_group`   | Azure Resource Group                              | ✔️ Yes       | `'github-runner-rg'`          | Existing or new resource group.               |
 | `location`         | Azure Location                                    | ✔️ Yes       | `'uksouth'`                    | Use any valid Azure region (e.g., `westeurope`, `uksouth`). |
 | `vm_size`          | Azure VM Size                                     | ✔️ Yes       | `'Standard_B1s'`              | Choose from `Standard_B1s`, `Standard_D2s_v3`, `Standard_F4s_v2`. |
-| `runner_group`     | GitHub Runner Group                               | ✔️ Yes       | `'Performance'`               | Specify the group in your GitHub organization. |
-| `runner_labels`    | Custom labels for the GitHub runner               | ✔️ Yes       | `'performance,vm,azure'`      | Use labels for job targeting.                 |
+| `runner_group`     | GitHub Runner Group                               | ✔️ Yes       | `'YourRunnerGroupName'`               | Specify the group in your GitHub organization. |
+| `runner_labels`    | Custom labels for the GitHub runner               | ✔️ Yes       | `'bestrunner,vm,azure'`      | Use labels for job targeting.                 |
 | `admin_username`   | Admin username for Azure VM                       | ✔️ Yes       | `'azureuser'`                 | Username for SSH access.                      |
 | `organization`     | GitHub organization where the runner will be registered | ✔️ Yes       | `'your-organization'`    | Specify the organization name.                |
 | `upload_ssh_key`   | Upload SSH key as artifact for debugging          | ❌ No        | `'false'`                     | `true` to upload the SSH key.                 |
@@ -115,3 +115,4 @@ Example JSON:
 2. Connect to the VM using SSH:
    ```bash
    ssh -i github_runner_key azureuser@<vm-public-ip>
+   ```
