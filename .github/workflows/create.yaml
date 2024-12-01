@@ -1,0 +1,120 @@
+name: Create Azure VM Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscription_id:
+        description: 'Azure Subscription ID (e.g., fxx4xxx3-dxxd-4xxe-9xxf-axxx6bxxxfcx)'
+        required: true
+      resource_group:
+        description: 'Azure Resource Group (must exist or will be created)'
+        required: true
+        default: 'github-runner-rg'
+      location:
+        description: 'Azure Location'
+        required: true
+        default: 'uksouth'
+        type: choice
+        options:
+          - westeurope       # West Europe
+          - northeurope      # North Europe
+          - francecentral    # France Central
+          - uksouth          # South UK
+          - eastus           # East US
+          - westus           # West US
+          - southeastasia    # Southeast Asia
+          - australiaeast    # Australia East
+      vm_size:
+        description: 'Azure VM Size'
+        required: true
+        default: 'Standard_B1s'
+        type: choice
+        options:
+          - Standard_B1s      # 1 vCPU, 1 GiB RAM (Smallest, cost-efficient)
+          - Standard_B2ms     # 2 vCPUs, 8 GiB RAM (Intermediate, general purpose)
+          - Standard_D2s_v3   # 2 vCPUs, 8 GiB RAM (High performance, general purpose)
+          - Standard_F4s_v2   # 4 vCPUs, 8 GiB RAM (Compute optimized)
+          - Standard_D8s_v3   # 8 vCPUs, 32 GiB RAM (Large, memory-intensive)
+      organization:
+        description: 'GitHub Organization'
+        required: true
+        default: 'Prod-Org'
+        type: choice
+        options:
+          - Prod-Org
+          - Dev-Org
+      runner_group:
+        description: 'GitHub Runner Group'
+        required: true
+        default: 'Default'
+      runner_labels:
+        description: 'GitHub Runner Labels (comma-separated)'
+        required: true
+        default: 'vm,azure'
+      admin_username:
+        description: 'Admin Username for Azure VM (avoid reserved words like admin or root)'
+        required: true
+        default: 'azureuser'
+      upload_ssh_key:
+        description: 'Upload SSH Key as an Artifact for debugging (choose true to enable)'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - true   # Upload SSH Key for debugging purposes
+          - false  # Do not upload the SSH Key
+
+jobs:
+  create-vm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        chmod +x scripts/dependencies.sh
+        scripts/dependencies.sh
+
+    - name: Log in to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_SP }}
+    
+    - name: Generate JWT
+      run: |
+        chmod +x scripts/generate_jwt.sh
+        JWT=$(scripts/generate_jwt.sh "${{ secrets.APP_KEY }}" "${{ secrets.APP_ID }}") || exit 1
+        echo "Generated JWT: $JWT"
+        printf "JWT=%s\n" "$JWT" >> $GITHUB_ENV
+      
+    - name: Get Registration Token
+      id: get_registration_token
+      run: |
+        chmod +x scripts/get_registration_token.sh
+        REGISTRATION_TOKEN=$(scripts/get_registration_token.sh "${{ env.JWT }}" "${{ github.event.inputs.organization }}") || exit 1
+        echo "Registration token fetched successfully."
+        echo "REGISTRATION_TOKEN=$REGISTRATION_TOKEN" >> $GITHUB_ENV
+      
+    - name: Setup Runner
+      run: |
+        chmod +x scripts/setup_runner.sh
+        scripts/setup_runner.sh \
+          --subscription-id "${{ github.event.inputs.subscription_id }}" \
+          --resource-group "${{ github.event.inputs.resource_group }}" \
+          --location "${{ github.event.inputs.location }}" \
+          --vm-size "${{ github.event.inputs.vm_size }}" \
+          --runner-group "${{ github.event.inputs.runner_group }}" \
+          --runner-labels "${{ github.event.inputs.runner_labels }}" \
+          --admin-username "${{ github.event.inputs.admin_username }}" \
+          --organization "${{ github.event.inputs.organization }}" \
+          --registration-token "${{ env.REGISTRATION_TOKEN }}"
+      
+  
+    - name: Upload SSH Key 
+      if: ${{ github.event.inputs.upload_ssh_key == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ssh-key
+        path: /home/runner/.ssh/github_runner_key
