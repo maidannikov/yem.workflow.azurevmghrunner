@@ -4,6 +4,52 @@ This repository contains a workflow to deploy a self-hosted GitHub Actions runne
 
 ---
 
+## **Requirements**
+### **GitHub App Setup**
+To use this workflow, you must have a GitHub App with the following setup:
+- Navigate to Settings > Developer Settings > GitHub Apps.
+- Create a new GitHub App with the following organization permissions:
+    - Self-hosted runners: Read & Write
+    - Metadata: Read
+- After creating the app, generate a Private Key
+    - Download the private key file
+    - Base64-encode the private key
+    ```bash
+    cat <private-key.pem> | base64 -w0 
+    ```
+- Store the following details as GitHub secrets in your repository
+    - APP_ID: The App ID of your GitHub App
+    - APP_KEY: The Base64-encoded private key
+### **Azure Credentials**    
+You need to provide Azure credentials as a secret in your repository for the workflow to interact with Azure resources.
+- Create a Service Principal with appropriate permissions:
+    - The Contributor role is required to manage Azure resources like VMs and resource groups.
+    ```bash
+    az ad sp create-for-rbac --name "GitHubRunnerSP" --role contributor --scopes /subscriptions/<subscription-id> --sdk-auth
+    # Replace <subscription-id> with your Azure Subscription ID.
+    ```
+- Copy the output JSON securely and store it as a GitHub secret:
+    - AZURE_SP: Paste the entire JSON output as the value of this secret.
+Example JSON:
+
+    ```json
+    {
+      "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "clientSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "subscriptionId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
+      "resourceManagerEndpointUrl": "https://management.azure.com/",
+      "activeDirectoryGraphResourceId": "https://graph.windows.net/",
+      "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
+      "galleryEndpointUrl": "https://gallery.azure.com/",
+      "managementEndpointUrl": "https://management.core.windows.net/"
+    }
+    
+    ```
+
+---
+
 ## **Features**
 - 🔄 Dynamically creates an Azure VM for the runner.
 - 🔒 Configures and registers the runner using GitHub App authentication.
